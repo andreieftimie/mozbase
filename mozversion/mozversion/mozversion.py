@@ -17,6 +17,13 @@ import mozlog
 import mozfile
 
 
+APPLICATION_TITLES = {
+    'mozilla-central': 'Nightly',
+    'mozilla-aurora': 'Aurora',
+    'mozilla-beta': 'Firefox',
+    'mozilla-release': 'Firefox'
+}
+
 class VersionError(Exception):
     def __init__(self, message):
         Exception.__init__(self, message)
@@ -50,6 +57,10 @@ class Version(mozlog.LoggingMixin):
                     name = name_map.get(key, key).lower()
                     self._info['%s_%s' % (filename, name)] = config.has_option(
                         section, key) and config.get(section, key) or None
+                if self._info.get('application_name') == 'Firefox':
+                    repository = self._info.get('application_repository')
+                    branch = repository.rsplit('/', 1)[1]
+                    self._info['application_title'] = APPLICATION_TITLES[branch]
             else:
                 self.warn('Unable to find %s' % config_file)
 

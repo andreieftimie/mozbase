@@ -41,7 +41,8 @@ setup(name=PACKAGE_NAME,
       license='MPL 2.0',
       packages=['mozrunner'],
       package_data={'mozrunner': [
-            'resources/metrotestharness.exe'
+            'resources/metrotestharness.exe',
+            'resources/firefoxdefault.exe'
       ]},
       zip_safe=False,
       install_requires = deps,

@@ -6,16 +6,19 @@
 
 import ConfigParser
 import mozinfo
+import mozversion
 import optparse
 import os
 import platform
 import subprocess
 import sys
+import tempfile
 
 if mozinfo.isMac:
     from plistlib import readPlist
 
 from mozprofile import Profile, FirefoxProfile, MetroFirefoxProfile, ThunderbirdProfile, MozProfileCLI
+from mozprocess.processhandler import ProcessHandler
 
 from .base import Runner
 from .utils import findInPath, get_metadata_from_egg
@@ -195,18 +198,42 @@ class MetroFirefoxRunner(LocalRunner):
     immersiveHelperPath = os.path.sep.join([here,
                                             'resources',
                                             'metrotestharness.exe'])
-
+    defaultSetterPath = os.path.sep.join([here,
+                                          'resources',
+                                          'firefoxdefault.exe'])
+    defaultSetterFile = tempfile.NamedTemporaryFile(delete=False).name
+    print "defaultSetterFile ", defaultSetterFile
     def __init__(self, profile, binary=None, **kwargs):
 
         # if no binary given take it from the BROWSER_PATH environment variable
         binary = binary or os.environ.get('BROWSER_PATH')
         LocalRunner.__init__(self, profile, binary, **kwargs)
-
         if not os.path.exists(self.immersiveHelperPath):
             raise OSError('Can not find Metro launcher: %s' % self.immersiveHelperPath)
 
         if not mozinfo.isWin:
             raise Exception('Firefox Metro mode is only supported on Windows 8 and onwards')
+
+    def start(self, debug_args=None, interactive=False, timeout=None, outputTimeout=None):
+        if mozinfo.isWin:
+            title = mozversion.get_version(self.binary).get('application_title')
+            default_cmd = [self.defaultSetterPath, title, self.defaultSetterFile]
+            process = ProcessHandler(default_cmd)
+            process.run(timeout=60)
+            if process.wait() != 0:
+                raise Exception('Failed to set Firefox as default browser')
+
+        LocalRunner.start(self, debug_args, interactive, timeout, outputTimeout)
+
+    def cleanup(self):
+        if mozinfo.isWin and os.path.exists(self.defaultSetterFile):
+            default_cmd = [self.defaultSetterPath, self.defaultSetterFile]
+            process = ProcessHandler(default_cmd)
+            process.run(timeout=60)
+            if process.wait() != 0:
+                raise Exception('Failed to remove Firefox as default')
+            os.remove(self.defaultSetterFile)
+        LocalRunner.cleanup(self)
 
     @property
     def command(self):
